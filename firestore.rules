@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read and write their own user data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to create and read donations
+    match /donations/{donationId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Allow authenticated users to create and read blood requests
+    match /blood_requests/{requestId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Allow read access to all users data for admin purposes (if needed)
+    match /users {
+      allow read: if request.auth != null;
+    }
+
+    // Allow read access to donations and blood requests for matching purposes
+    match /donations {
+      allow read: if request.auth != null;
+    }
+
+    match /blood_requests {
+      allow read: if request.auth != null;
+    }
+  }
+}
