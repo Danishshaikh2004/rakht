@@ -12,6 +12,7 @@ import AdminPanel from './pages/AdminPanel'
 import AdminAccess from './pages/AdminAccess'
 import Contact from './pages/Contact'
 import TermsAndConditions from './pages/TermsAndConditions'
+import ActiveRequests from './pages/ActiveRequests'
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+            <Route path="/active-requests" element={<ActiveRequests />} />
           </Routes>
         </main>
         <Footer />

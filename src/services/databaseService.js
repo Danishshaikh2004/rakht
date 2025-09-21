@@ -1,4 +1,4 @@
-import {
+ import {
   doc,
   getDoc,
   updateDoc,
@@ -235,5 +235,20 @@ export class DatabaseService {
       reader.onload = () => resolve(reader.result);
       reader.onerror = error => reject(error);
     });
+  }
+
+  // Get active blood requests (status pending or active)
+  static async getActiveBloodRequests() {
+    try {
+      const q = query(collection(db, 'blood_requests'), where('status', 'in', ['pending', 'active']));
+      const querySnapshot = await getDocs(q);
+      const requests = [];
+      querySnapshot.forEach((doc) => {
+        requests.push({ id: doc.id, ...doc.data() });
+      });
+      return { success: true, data: requests };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   }
 }

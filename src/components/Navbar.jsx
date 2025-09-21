@@ -1,16 +1,31 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useEffect, useState } from 'react'
+import { DatabaseService } from '../services/databaseService'
 
 const Navbar = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { currentUser } = useAuth()
 
+  const [activeRequests, setActiveRequests] = useState([])
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
   const isActive = (path) => location.pathname === path
 
   const handleProfileClick = () => {
     navigate('/profile')
   }
+
+  useEffect(() => {
+    const fetchActiveRequests = async () => {
+      const result = await DatabaseService.getActiveBloodRequests()
+      if (result.success) {
+        setActiveRequests(result.data)
+      }
+    }
+    fetchActiveRequests()
+  }, [])
 
   return (
     <nav className="bg-white shadow-lg fixed top-0 left-0 right-0 z-50">
@@ -50,6 +65,47 @@ const Navbar = () => {
             >
               Contact
             </Link>
+            <Link
+              to="/request-list"
+              className={`nav-link ${isActive('/request-list') ? 'text-red-600' : ''}`}
+            >
+              Request List
+            </Link>
+
+            {/* Active Requests */}
+            <div className="relative">
+              <button
+                className="nav-link cursor-pointer flex items-center space-x-1"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+              >
+                <span>Active Requests</span>
+                {activeRequests.length > 0 && (
+                  <span className="ml-1 bg-red-600 text-white rounded-full px-2 text-xs font-semibold">
+                    {activeRequests.length}
+                  </span>
+                )}
+              </button>
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto">
+                  {activeRequests.length === 0 ? (
+                    <div className="p-4 text-gray-500">No active requests</div>
+                  ) : (
+                    activeRequests.map((request) => (
+                      <Link
+                        key={request.id}
+                        to="/active-requests"
+                        className="block p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <div className="font-semibold text-sm">{request.patient_name || 'Unknown Patient'}</div>
+                        <div className="text-xs text-gray-600">{request.blood_group || 'Unknown Blood Group'}</div>
+                        <div className="text-xs text-gray-600">{request.hospital_name || 'Unknown Hospital'}</div>
+                        <div className="text-xs text-gray-600">Urgency: {request.urgency || 'Normal'}</div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Authentication Section */}
             {currentUser ? (
