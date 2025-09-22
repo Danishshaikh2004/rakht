@@ -46,6 +46,20 @@ export class DatabaseService {
     }
   }
 
+  // Get all spam reports
+  static async getAllSpamReports() {
+    try {
+      const spamSnapshot = await getDocs(collection(db, 'spam_reports'));
+      const reports = [];
+      spamSnapshot.forEach((doc) => {
+        reports.push({ id: doc.id, ...doc.data() });
+      });
+      return { success: true, data: reports };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
   // Get all users (for admin purposes)
   static async getAllUsers() {
     try {
@@ -247,6 +261,29 @@ export class DatabaseService {
         requests.push({ id: doc.id, ...doc.data() });
       });
       return { success: true, data: requests };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Add donor to spam reports collection
+  static async addDonorToSpamReports(donorId, reportData) {
+    try {
+      await setDoc(doc(db, 'spam_reports', donorId), {
+        ...reportData,
+        reportedAt: new Date().toISOString()
+      });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Remove donor from users collection
+  static async removeDonor(donorId) {
+    try {
+      await deleteDoc(doc(db, 'users', donorId));
+      return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
     }

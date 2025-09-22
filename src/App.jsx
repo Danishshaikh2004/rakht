@@ -13,6 +13,7 @@ import AdminAccess from './pages/AdminAccess'
 import Contact from './pages/Contact'
 import TermsAndConditions from './pages/TermsAndConditions'
 import ActiveRequests from './pages/ActiveRequests'
+import RequestList from './pages/RequestList'
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
             <Route path="/active-requests" element={<ActiveRequests />} />
+            <Route path="/request-list" element={<RequestList />} />
           </Routes>
         </main>
         <Footer />

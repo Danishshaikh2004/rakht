@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DatabaseService } from '../services/databaseService';
 
 const AdminPanel = () => {
   const [activeSection, setActiveSection] = useState('donors');
+  const [pendingDonors, setPendingDonors] = useState([]);
+  const [bloodRequests, setBloodRequests] = useState([]);
+  const [spamReports, setSpamReports] = useState([]);
   const navigate = useNavigate();
 
   // Check if admin access is granted
@@ -13,71 +17,74 @@ const AdminPanel = () => {
     }
   }, [navigate]);
 
-  const pendingDonors = [
-    {
-      id: 1,
-      name: 'Alice Johnson',
-      email: 'alice@example.com',
-      bloodGroup: 'A+',
-      location: 'New York, NY',
-      documents: ['aadhaar.jpg', 'medical_cert.pdf'],
-      submittedAt: '2024-01-15'
-    },
-    {
-      id: 2,
-      name: 'Bob Smith',
-      email: 'bob@example.com',
-      bloodGroup: 'O-',
-      location: 'Los Angeles, CA',
-      documents: ['aadhaar.pdf', 'health_report.pdf'],
-      submittedAt: '2024-01-14'
+  // Fetch pending donors from Firestore
+  const fetchPendingDonors = async () => {
+    const result = await DatabaseService.getAllUsers();
+    if (result.success) {
+      // Filter donors with status 'pending' and requestType 'donation'
+      const filteredDonors = result.data.filter(
+        (user) => user.status === 'pending' && user.requestType === 'donation'
+      );
+      setPendingDonors(filteredDonors);
     }
-  ];
-
-  const bloodRequests = [
-    {
-      id: 1,
-      requester: 'Carol Davis',
-      bloodGroup: 'B+',
-      urgency: 'immediate',
-      location: 'Chicago, IL',
-      status: 'pending',
-      submittedAt: '2024-01-15'
-    },
-    {
-      id: 2,
-      requester: 'David Wilson',
-      bloodGroup: 'AB-',
-      urgency: 'today',
-      location: 'Houston, TX',
-      status: 'matched',
-      submittedAt: '2024-01-14'
-    }
-  ];
-
-  const spamReports = [
-    {
-      id: 1,
-      reporter: 'user123',
-      type: 'Fake Request',
-      description: 'Suspicious request with invalid details',
-      reportedAt: '2024-01-15'
-    }
-  ];
-
-  const systemMetrics = {
-    totalDonors: 15420,
-    activeRequests: 23,
-    totalUsers: 25680,
-    monthlyDonations: 1247
   };
 
-  const handleApproveDonor = (donorId) => {
-    alert(`Donor ${donorId} approved successfully!`);
+  // Fetch blood requests from Firestore
+  const fetchBloodRequests = async () => {
+    const result = await DatabaseService.getActiveBloodRequests();
+    if (result.success) {
+      setBloodRequests(result.data);
+    }
   };
 
-  const handleRejectDonor = (donorId) => {
-    alert(`Donor ${donorId} rejected.`);
+  // Fetch spam reports from Firestore
+  const fetchSpamReports = async () => {
+    const result = await DatabaseService.getAllSpamReports();
+    if (result.success) {
+      setSpamReports(result.data);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingDonors();
+    fetchBloodRequests();
+    fetchSpamReports();
+  }, []);
+
+  // Approve donor handler
+  const handleApproveDonor = async (donorId) => {
+    const result = await DatabaseService.updateUserProfile(donorId, { status: 'approved' });
+    if (result.success) {
+      alert(`Donor ${donorId} approved successfully!`);
+      fetchPendingDonors();
+    } else {
+      alert(`Failed to approve donor: ${result.error}`);
+    }
+  };
+
+  // Reject donor handler
+  const handleRejectDonor = async (donor) => {
+    // Add donor to spam reports
+    const reportData = {
+      reporter: donor.email,
+      type: 'Donor Rejection',
+      description: `Donor ${donor.name} rejected by admin.`,
+      reportedAt: new Date().toISOString()
+    };
+    const addSpamResult = await DatabaseService.addDonorToSpamReports(donor.id, reportData);
+    if (addSpamResult.success) {
+      // Remove donor from users collection
+      const removeResult = await DatabaseService.removeDonor(donor.id);
+      if (removeResult.success) {
+        alert(`Donor ${donor.name} rejected and moved to spam reports.`);
+        fetchPendingDonors();
+        fetchSpamReports();
+      } else {
+        alert(`Failed to remove donor: ${removeResult.error}`);
+      }
+    } else {
+      alert(`Failed to add donor to spam reports: ${addSpamResult.error}`);
+    }
   };
 
   const handleViewDocument = (documentName) => {
@@ -155,23 +162,43 @@ const AdminPanel = () => {
                         <span className="ml-2">{donor.location}</span>
                       </div>
                       <div>
-                        <span className="font-medium text-gray-700">Submitted:</span>
-                        <span className="ml-2">{new Date(donor.submittedAt).toLocaleDateString()}</span>
+                        <span className="font-medium text-gray-700">Available Date:</span>
+                        <span className="ml-2">{donor.availableDate}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Available Time:</span>
+                        <span className="ml-2">{donor.availableTime}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Last Donation:</span>
+                        <span className="ml-2">{donor.lastDonation || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Request Type:</span>
+                        <span className="ml-2">{donor.requestType}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Status:</span>
+                        <span className="ml-2">{donor.status}</span>
                       </div>
                     </div>
 
                     <div>
                       <h4 className="font-medium text-gray-700 mb-2">Documents:</h4>
                       <div className="flex flex-wrap gap-2">
-                        {donor.documents.map((doc, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleViewDocument(doc)}
-                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200 transition-colors"
-                          >
-                            📄 {doc}
-                          </button>
-                        ))}
+                        {donor.documents && donor.documents.length > 0 ? (
+                          donor.documents.map((doc, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleViewDocument(doc)}
+                              className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200 transition-colors"
+                            >
+                              📄 {doc}
+                            </button>
+                          ))
+                        ) : (
+                          <p className="text-gray-500 text-sm">No documents available</p>
+                        )}
                       </div>
                     </div>
 
@@ -183,7 +210,7 @@ const AdminPanel = () => {
                         Approve
                       </button>
                       <button
-                        onClick={() => handleRejectDonor(donor.id)}
+                        onClick={() => handleRejectDonor(donor)}
                         className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                       >
                         Reject
@@ -226,8 +253,14 @@ const AdminPanel = () => {
                       </div>
                     </div>
 
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-2">Request Details:</h4>
+                      <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                        {JSON.stringify(request, null, 2)}
+                      </pre>
+                    </div>
+
                     <div className="flex space-x-3">
-                      <button className="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg">View Details</button>
                       <button className="bg-gray-100 text-gray-700 border border-gray-300 font-medium py-2 px-4 rounded-lg">Contact Requester</button>
                     </div>
                   </div>
